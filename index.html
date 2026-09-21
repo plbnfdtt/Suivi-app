@@ -264,7 +264,8 @@
   .tag-pill { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 3px 7px; border-radius: 5px; }
   .tag-force { background: rgba(94,129,172,0.22); color: var(--frost3); }
   .tag-course { background: rgba(163,190,140,0.2); color: var(--green); }
-  .tag-krav { background: rgba(191,97,106,0.2); color: var(--red); }
+  .tag-boxe { background: rgba(191,97,106,0.2); color: var(--red); }
+  .tag-hyrox { background: rgba(208,135,112,0.2); color: var(--orange); }
   .tag-gtg { background: rgba(235,203,139,0.2); color: var(--yellow); }
   .tag-repos { background: rgba(137,147,166,0.18); color: var(--muted); }
 
@@ -599,8 +600,8 @@
   var HISTORY_KEY = "strength-history-v1";
 
   var TEMPLATES = {
-    lower: { name: "Lower", icon: "🦵", exos: ["Deadlift","Squat","Fentes chargées","Ab Wheel"] },
-    upper: { name: "Upper", icon: "💪", exos: ["Bench Press","Landmine Press","Tractions lestées","Dips","Rowing barre"] },
+    forceA: { name: "Force A (Lundi)", icon: "🅰️", exos: ["Squat","Bench Press","Landmine Press","Rowing barre","Tractions lestées","Ab Wheel"] },
+    forceB: { name: "Force B (Jeudi)", icon: "🅱️", exos: ["Deadlift","Front Squat","Bench Press","Landmine Press","Dips","Ab Wheel"] },
     libre: { name: "Libre", icon: "✨", exos: [] }
   };
   var EXO_POOL = ["Squat","Front Squat","Deadlift","Bench Press","Strict Press","Landmine Press",
@@ -899,85 +900,95 @@
 
   /* ================= PLANNING MODULE ================= */
   var planningSubTab = "semaine"; // semaine | logique
+  var activeMonth = 0;
 
   var PRIORITIES = [
-    { rank: "1", label: "Force / Physique", color: "var(--frost3)", note: "3 séances/sem — Upper, Lower (DL en tête), EMOM mercredi" },
-    { rank: "2", label: "Krav Maga", color: "var(--red)", note: "2 cours/sem — Lundi + Mercredi soir" },
-    { rank: "3", label: "Course à pied club", color: "var(--green)", note: "2 séances/sem — Mardi soir (qualité) + Samedi matin" },
-    { rank: "4", label: "Hyrox (saisonnier)", color: "var(--yellow)", note: "En bonus à partir d'octobre si objectif course confirmé" }
+    { rank: "1", label: "Force — Squat prioritaire", color: "var(--frost3)", note: "Squat en progression réelle · Deadlift & jambes en maintenance" },
+    { rank: "2", label: "Upper — Bench & Landmine", color: "var(--purple)", note: "2×/sem, vrai volume — peu d'interférence avec course/Hyrox" },
+    { rank: "3", label: "Athlé club", color: "var(--green)", note: "Fractionné court mar/mer (choix) + long samedi matin" },
+    { rank: "4", label: "Hyrox club", color: "var(--orange)", note: "1×/sem — SkiErg/sled/rameur/wall balls réels" },
+    { rank: "5", label: "Boxe anglaise (ponctuelle)", color: "var(--red)", note: "Apollo Boulogne — jamais de MMA/grappling" }
   ];
 
-  // day index: 0=Dim,1=Lun,2=Mar,3=Mer,4=Jeu,5=Ven,6=Sam
-  var WEEK_PLAN = [
-    { idx: 1, day: "LUNDI", sub: "Force Upper + Krav Maga", tags: ["force","krav"], slots: [
-      { tag: "force", label: "MATIN", title: "Force — Upper", startTemplate: "upper", items: [
-        { t: "Bench Press 5×5" }, { t: "Landmine press 4×8/côté" }, { t: "Tractions lestées 4×5" },
-        { t: "Dips 4×6" }, { t: "Rowing barre 4×8" },
-        { t: "Finisher EMOM 8-10 min alterné : min paire 6-8 dips, min impaire 8-10 ab wheel contrôlés" },
-        { t: "Réduire les reps ab wheel si le gainage lâche", note: true },
-        { t: "Placé avant le Krav Maga — protège la fraîcheur technique du soir", note: true }
-      ]},
-      { tag: "krav", label: "SOIR", title: "Krav Maga — Cours 1", items: [ { t: "Technique + mise en situation" } ]}
-    ]},
-    { idx: 2, day: "MARDI", sub: "GTG léger + Course club qualité", tags: ["gtg","course"], slots: [
-      { tag: "gtg", label: "MATIN", title: "GTG / mobilité", items: [
-        { t: "Dead hangs 3-4 passages légers" },
-        { t: "Mobilité générale 15 min — rien de fatigant avant la séance club du soir" }
-      ]},
-      { tag: "course", label: "SOIR", title: "Course club — Séance qualité", items: [
-        { t: "Fractionné / VMA coaché — la séance intense de la semaine" }
+  var TAG_LABELS = { force: "FORCE", course: "ATHLÉ CLUB", hyrox: "HYROX CLUB", boxe: "BOXE ANGLAISE", repos: "REPOS" };
+
+  var RACES = [
+    { name: "Hyrox Hambourg", date: "30 octobre 2026", note: "Calibrage — retour d'expérience direct pour Paris", color: "var(--frost3)" },
+    { name: "Hyrox Solo Paris", date: "13 décembre 2026", note: "Objectif principal de la fenêtre", color: "var(--red)" }
+  ];
+
+  var WEEK = [
+    { day: "LUNDI", sub: "Force A — Squat + Upper", tags: ["force"], slots: [
+      { tag: "force", label: "SÉANCE", title: "Force A", startTemplate: "forceA", items: [
+        { t: "Squat 4-5×4-5 — lourd, seule progression réelle jambes" },
+        { t: "Bench Press 4×6" },
+        { t: "Landmine Press 3×8-10/côté" },
+        { t: "Rowing barre 4×8" },
+        { t: "Tractions lestées 3×5" },
+        { t: "Ab wheel 3×10" }
       ]}
     ]},
-    { idx: 3, day: "MERCREDI", sub: "Double EMOM + Krav Maga", tags: ["gtg","krav"], slots: [
-      { tag: "gtg", label: "MATIN", title: "Double EMOM — Full bodyweight", items: [
-        { t: "EMOM 10 min — Tractions (grip/tirage frais en premier)" },
-        { t: "EMOM 10 min — Pompes, 12-15/min selon max, 1-2 reps en réserve" },
-        { t: "Ab wheel 3×10 — léger, zéro fatigue jambes" },
-        { t: "Zéro sollicitation jambes — préserve le footwork pour le Krav Maga du soir", note: true }
-      ]},
-      { tag: "krav", label: "SOIR", title: "Krav Maga — Cours 2", items: [ { t: "Technique + mise en situation" } ]}
+    { day: "MARDI", sub: "Athlé club OU Hyrox club (au choix avec mercredi)", tags: ["course","hyrox"], slots: [
+      { tag: "course", label: "SOIR", title: "Athlé club — fractionné court (si choisi)", items: [ { t: "Séance piste coachée" } ]},
+      { tag: "hyrox", label: "ALT.", title: "Sinon : Cours Hyrox club", items: [ { t: "SkiErg, sled, rameur, wall balls réels" } ]}
     ]},
-    { idx: 4, day: "JEUDI", sub: "Force Lower — jour 100% libre", tags: ["force"], slots: [
-      { tag: "force", label: "JOURNÉE", title: "Force — Lower, Deadlift en tête", startTemplate: "lower", items: [
-        { t: "Deadlift 5×3 — SNC frais, aucune contrainte club ce jour" },
-        { t: "Squat 5×5" }, { t: "Fentes chargées 3×10 (5/côté)" }, { t: "Ab wheel 3×10" },
-        { t: "Seul jour sans créneau club fixe — le lift le plus coûteux neurologiquement le mérite", note: true }
+    { day: "MERCREDI", sub: "L'inverse du mardi", tags: ["course","hyrox"], slots: [
+      { tag: "course", label: "SOIR", title: "Athlé club — fractionné court (si choisi)", items: [ { t: "Séance piste coachée" } ]},
+      { tag: "hyrox", label: "ALT.", title: "Sinon : Cours Hyrox club", items: [ { t: "Calibrage technique irremplaçable sur le vrai matériel" } ]}
+    ]},
+    { day: "JEUDI", sub: "Force B — Deadlift + Upper", tags: ["force"], slots: [
+      { tag: "force", label: "SÉANCE", title: "Force B", startTemplate: "forceB", items: [
+        { t: "Deadlift 4×3 @ 80-85% — maintenance, pas de PR forcé" },
+        { t: "Front Squat 3×6 — 2e touche jambes, léger" },
+        { t: "Bench Press 3×5, un peu plus lourd qu'au lundi" },
+        { t: "Landmine Press 3×8/côté" },
+        { t: "Dips 3×8" },
+        { t: "Ab wheel 3×10" }
       ]}
     ]},
-    { idx: 5, day: "VENDREDI", sub: "Repos ou mobilité", tags: ["repos"], slots: [
-      { tag: "repos", label: "LIBRE", title: "Récupération", items: [
-        { t: "Repos complet ou mobilité légère selon fatigue accumulée" },
-        { t: "1er des 2 jours de vrai repos de la semaine", note: true }
-      ]}
+    { day: "VENDREDI", sub: "Repos ou boxe ponctuelle", tags: ["boxe","repos"], slots: [
+      { tag: "boxe", label: "SI ENVIE", title: "Boxe anglaise — Apollo (ponctuel)", items: [ { t: "Boxe anglaise uniquement — jamais de MMA/grappling", note: true } ]},
+      { tag: "repos", label: "SINON", title: "Repos", items: [] }
     ]},
-    { idx: 6, day: "SAMEDI", sub: "Course club — endurance/trail", tags: ["course"], slots: [
-      { tag: "course", label: "MATIN", title: "Course club — Endurance/Trail", items: [
-        { t: "Séance longue coachée — volume, D+ selon le programme du club" }
-      ]}
+    { day: "SAMEDI", sub: "Athlé club — fractionné long", tags: ["course"], slots: [
+      { tag: "course", label: "MATIN", title: "Athlé club — fractionné long piste", items: [ { t: "Séance longue coachée" } ]}
     ]},
-    { idx: 0, day: "DIMANCHE", sub: "Repos complet", tags: ["repos"], slots: [
-      { tag: "repos", label: "OFF", title: "Repos total", items: [
-        { t: "2e jour de vrai repos — supercompensation" }
-      ]}
+    { day: "DIMANCHE", sub: "Repos complet", tags: ["repos"], slots: [
+      { tag: "repos", label: "OFF", title: "Repos total", items: [] }
     ]}
   ];
 
-  var PLAN_LOGIC = [
-    { icon: "🥊", title: "Upper avant Krav Maga", text: "La force upper est placée le matin, avant le Krav Maga du soir — jamais l'inverse. Ça protège la qualité technique du geste combat, très dépendant des épaules et du grip." },
-    { icon: "🏋️", title: "Deadlift le jeudi", text: "Seul jour sans aucune contrainte club fixe. Le deadlift est le lift le plus coûteux neurologiquement — il mérite le jour le plus frais et le moins parasité de la semaine." },
-    { icon: "🦵", title: "EMOM plutôt que mix Upper/Lower", text: "Le mercredi matin précède un 2e Krav Maga le soir — le double EMOM est 100% haut du corps, zéro fatigue jambes, donc zéro impact sur le footwork du soir." },
-    { icon: "😴", title: "2 jours de repos préservés", text: "Avec 6 séances structurées (2 Krav + 2 course club + 3 force), vendredi et dimanche restent intouchables. C'est ce qui rend la semaine soutenable sur la durée." }
+  var KEY_WEEKS = [
+    { label: "Semaine du 26-30 oct — Taper Hambourg", text: "Volume Force réduit de moitié, aucune nouvelle charge. Athlé/Hyrox club allégés en intensité." },
+    { label: "Semaine du 2-8 nov — Récupération post-course", text: "Tout en léger toute la semaine. Reprise normale la semaine suivante." },
+    { label: "Semaine du 7-13 déc — Taper Paris", text: "Même logique que Hambourg : réduction progressive, rien de nouveau, repos priorisé." }
   ];
 
-  var TAG_LABELS = { force: "FORCE", course: "COURSE CLUB", krav: "KRAV MAGA", gtg: "GTG/EMOM", repos: "REPOS" };
+  var PLAN_LOGIC = [
+    { icon: "🦵", title: "L'interférence touche surtout les jambes", text: "Force et endurance interfèrent quand les mêmes groupes musculaires sont sollicités par les deux — jambes lourdes vs course, essentiellement. Le haut du corps ne partage presque pas cette compétition avec l'athlé ou l'Hyrox, donc il peut recevoir un vrai volume de développement sans risque." },
+    { icon: "🏋️", title: "2×/semaine, le point d'équilibre", text: "À volume hebdomadaire égal, la fréquence seule n'a pas d'effet marqué sur les gains de force — mais 2×/semaine par lift capture un bénéfice réel et modeste par rapport à 1×, sans les rendements décroissants d'une fréquence plus élevée." },
+    { icon: "🎯", title: "Squat seul en vraie progression", text: "Squat progresse chaque semaine — c'est le lift le plus proche de l'objectif. Deadlift reste lourd mais stabilisé (maintenance) pour ne pas cumuler avec la charge déjà imposée par l'athlé et l'Hyrox sur les jambes." },
+    { icon: "🔧", title: "Landmine plutôt que strict press", text: "Même schéma de poussée, préférence personnelle, et la trajectoire diagonale de la barre contourne le plafond bas du home gym." },
+    { icon: "🔄", title: "Un macrocycle Hyrox continu", text: "Hambourg et Paris sont le même sport — un seul bloc continu avec une semaine de récupération et de recalibrage entre les deux, plutôt qu'un pivot brutal vers une autre discipline." },
+    { icon: "🥊", title: "Boxe anglaise uniquement", text: "Le MMA inclut du grappling et des mises au sol — charge en flexion/rotation sur le rachis, le mécanisme le plus à risque pour les hernies L4-L5/L5-S1. La boxe anglaise pure reste un risque bien plus faible." }
+  ];
 
-  function todayDow() { return new Date().getDay(); }
+  var NUTRITION_NOTE = "Vigilance permanente, pas une case du planning : avec l'upper qui remonte en volume, revoir l'apport protéique et calorique en conséquence plutôt que d'attendre un signal de régression.";
 
   function renderPlanning() {
-    var todayIdx = todayDow();
     var html = '';
-    html += '<div class="page-header"><div class="eyebrow">Club Saint-Cloud</div><h1>Planning</h1><div class="sub">Force · Krav Maga · Course club</div></div>';
+    html += '<div class="page-header"><div class="eyebrow">Macrocycle Hyrox</div><h1>Planning</h1><div class="sub">Hambourg → Paris</div></div>';
     html += '<div class="wrap">';
+
+    html += '<div style="display:flex;gap:8px;margin-bottom:20px;">';
+    RACES.forEach(function(r) {
+      html += '<div style="flex:1;background:var(--surface);border-left:3px solid '+r.color+';border-radius:0 14px 14px 0;padding:12px 14px;">';
+      html += '<div style="font-size:12px;font-weight:800;color:'+r.color+';">'+r.name+'</div>';
+      html += '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">'+r.date+'</div>';
+      html += '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4;">'+r.note+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
 
     html += '<div class="segmented">';
     html += '<button data-psub="semaine" class="'+(planningSubTab==="semaine"?"active":"")+'">Semaine</button>';
@@ -990,12 +1001,11 @@
         html += '<div class="prio-row"><div class="prio-rank" style="color:'+p.color+';">'+p.rank+'</div><div><div class="prio-label">'+p.label+'</div><div class="prio-note">'+p.note+'</div></div></div>';
       });
 
-      html += '<div class="section-label">Semaine type</div>';
-      WEEK_PLAN.forEach(function(d, i) {
-        var isToday = d.idx === todayIdx;
-        html += '<div class="day-card'+(isToday?' today':'')+'" data-day-idx="'+i+'">';
+      html += '<div class="section-label">Semaine type — répétée jusqu\'au 13 déc</div>';
+      WEEK.forEach(function(d, i) {
+        html += '<div class="day-card" data-day-idx="'+i+'">';
         html += '<div class="day-head">';
-        html += '<div><div class="day-name">'+d.day+(isToday?'<span class="today-tag">AUJOURD\'HUI</span>':'')+'</div>';
+        html += '<div><div class="day-name">'+d.day+'</div>';
         html += '<div class="day-sub">'+d.sub+'</div>';
         html += '<div class="day-tags">';
         d.tags.forEach(function(tg) { html += '<span class="tag-pill tag-'+tg+'">'+TAG_LABELS[tg]+'</span>'; });
@@ -1018,12 +1028,18 @@
         html += '</div>';
         html += '</div>';
       });
+
+      html += '<div class="section-label">Semaines clés</div>';
+      KEY_WEEKS.forEach(function(k) {
+        html += '<div class="card-flat"><div style="font-size:12px;font-weight:700;color:var(--frost2);margin-bottom:4px;">'+k.label+'</div><div style="font-size:12px;color:var(--muted);line-height:1.55;">'+k.text+'</div></div>';
+      });
+
+      html += '<div class="plan-note">⚠ '+NUTRITION_NOTE+'</div>';
     } else {
-      html += '<div class="section-label">Pourquoi cet agencement</div>';
+      html += '<div class="section-label">Pourquoi ce programme</div>';
       PLAN_LOGIC.forEach(function(c) {
         html += '<div class="logic-card"><div class="l-icon">'+c.icon+'</div><div><div class="l-title">'+c.title+'</div><div class="l-text">'+c.text+'</div></div></div>';
       });
-      html += '<div class="plan-note">Ce planning démarre à la rentrée sportive du club Saint-Cloud. D\'ici là, la routine actuelle continue normalement.</div>';
     }
 
     html += '</div>';
